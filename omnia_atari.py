@@ -1,4 +1,3 @@
-from operator import itemgetter
 import time
 import argparse
 from pathlib import Path
@@ -40,13 +39,30 @@ def download_for_glob(glob_pattern, search_results):
             break
 
 
+def perform_download(search):
+    download_for_glob("*.atr", search)
+    download_for_glob("*.rom", search)
+    download_for_glob("*.cas", search)
+    download_for_glob("*.car", search)
+
+
 search = search_items('a8b_')
-download_for_glob("*.atr", search)
-download_for_glob("*.rom", search)
-download_for_glob("*.cas", search)
-download_for_glob("*.car", search)
+
+# perform_download(search)
 
 # Now that we've downloaded the giant bag of items,
 # Create symlinks for the collections each title is in
 # in the collections folder. Name the links by the
 # item's title.
+
+item: Item
+for item in search.iter_as_items():
+    title = item.metadata['title']
+    collections = item.collection
+
+# Rather than doing the downloads in bulk what we should do
+# is cycle through the search results, looking for items with
+# matching files that we're interested in.
+# That way, we can download the files as well as capturing the
+# necessary bits of metadata we need to add them to their
+# respective collections in the download set.
