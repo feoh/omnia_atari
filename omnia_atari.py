@@ -3,66 +3,48 @@ import argparse
 from pathlib import Path
 
 from internetarchive import search_items, Item
-from requests.exceptions import ConnectTimeout
-from urllib3.exceptions import ConnectTimeoutError
-
-parser = argparse.ArgumentParser()
-
-parser.add_argument("root", help="Root folder for downloads")
-args = parser.parse_args()
-
-DESTINATION_FOLDER_ROOT = Path(args.root)
-DESTINATION_ITEMS_PATH = DESTINATION_FOLDER_ROOT / "items"
-DESTINATION_ITEMS_PATH.mkdir(exist_ok=True)
-DESTINATION_COLLECTIONS_PATH = DESTINATION_FOLDER_ROOT / "collections"
-DESTINATION_COLLECTIONS_PATH.mkdir(exist_ok=True)
 
 
-# This is my best guess to get all 8 bit Atari Binaries the Internet Archive has on offer.
-def download_for_glob(glob_pattern, search_results):
-    # This is imperfect to say the least but if we fail, pause a minute and check the list for uncompleted downloads
-    # Also gross - since glob_pattern only supports a SINGLE glob, if I want to ONLY download the various binary formats
-    # I need to do separate downloads for each :(
-    item: Item
-    for item in search_results.iter_as_items():
-        while True:
-            try:
-                item.download(verbose=True, glob_pattern=glob_pattern, retries=50, destdir=str(DESTINATION_ITEMS_PATH))
-            except ConnectTimeoutError:
-                print("If at first we don't succeed - START AGAIN! - urllib3 timeout.")
-                time.sleep(30)
-                continue
-            except ConnectTimeout:
-                print("If at first we don't succeed - START AGAIN! - requests timeout.")
-                time.sleep(30)
-                continue
-            break
+def handle_args() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("root", help="Root folder for downloads")
+    return parser.parse_args()
 
 
-def perform_download(search):
-    download_for_glob("*.atr", search)
-    download_for_glob("*.rom", search)
-    download_for_glob("*.cas", search)
-    download_for_glob("*.car", search)
+def find_atari_files(files: list) -> list:
+    atari_extensions = ['.atr', '.rom', '.cas', '.car', '.xex']
+    found_files = [
+        atari_file
+        for atari_file in files
+        for extension in atari_extensions
+        if atari_file.endswith(extension)
+    ]
+    return found_files
 
 
-search = search_items('a8b_')
+def get_item_files(item: Item) -> list:
+    item_files = [
+        item_file['name']
+        for item_file in item.files
+    ]
+    return item_files
 
-# perform_download(search)
 
-# Now that we've downloaded the giant bag of items,
-# Create symlinks for the collections each title is in
-# in the collections folder. Name the links by the
-# item's title.
+if __name__ == '__main__':
+    args = handle_args()
+    destination_folder_root = Path(args.root)
+    destination_items_path = destination_folder_root / "items"
+    destination_items_path.mkdir(exist_ok=True)
+    destination_collections_path = destination_folder_root / "collections"
+    destination_collections_path.mkdir(exist_ok=True)
 
-item: Item
-for item in search.iter_as_items():
-    title = item.metadata['title']
-    collections = item.collection
+    search = search_items('a8b_')
 
-# Rather than doing the downloads in bulk what we should do
-# is cycle through the search results, looking for items with
-# matching files that we're interested in.
-# That way, we can download the files as well as capturing the
-# necessary bits of metadata we need to add them to their
-# respective collections in the download set.
+    # perform_download(search)
+
+    current_item: Item
+    for current_item in search.iter_as_items():
+        item_files = get_item_files(current_item)
+        atari_files = find_atari_files(item_files)
+        current_item.download(verbose=True, files=atari_files, destdir=str(destination_items_path), retries=3)
+        # TODO symlink a nicely named (by title) dir for this item into the collections folder.
