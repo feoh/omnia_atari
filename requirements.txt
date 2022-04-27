@@ -4,3 +4,4 @@ bs4
 requests
 urllib3
 pytest
+python-slugify

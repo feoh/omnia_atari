@@ -1,6 +1,8 @@
+import pathlib
 import time
 import argparse
 from pathlib import Path
+from slugify import slugify
 
 from internetarchive import search_items, Item
 
@@ -46,5 +48,24 @@ if __name__ == '__main__':
     for current_item in search.iter_as_items():
         item_files = get_item_files(current_item)
         atari_files = find_atari_files(item_files)
+        if not atari_files:
+            continue
+
+        print(f"atari_files: {atari_files}")
+
+        print(f"Downloading {current_item.identifier} to {destination_items_path}")
         current_item.download(verbose=True, files=atari_files, destdir=str(destination_items_path), retries=3)
-        # TODO symlink a nicely named (by title) dir for this item into the collections folder.
+        collection_ids = [
+            collection.metadata['identifier']
+            for collection in current_item.collection
+        ]
+        print(f"collection_ids: {collection_ids}")
+        current_item_path: pathlib.Path = destination_items_path / current_item.identifier
+        for collection_name in collection_ids:
+            collection_folder_path: pathlib.Path = destination_collections_path / collection_name
+            collection_folder_path.mkdir(exist_ok=True)
+            slugified_title = slugify(current_item.metadata['title'])
+            collection_symlink_path: pathlib.Path = collection_folder_path / slugified_title
+            collection_symlink_path.mkdir(exist_ok=True)
+            print(f"Creating symbolic link from {current_item_path} to {collection_symlink_path}")
+            current_item_path.symlink_to(collection_symlink_path, target_is_directory=True)
