@@ -42,19 +42,18 @@ if __name__ == '__main__':
 
     search = search_items('a8b_')
 
-    # perform_download(search)
-
     current_item: Item
     for current_item in search.iter_as_items():
         item_files = get_item_files(current_item)
-        atari_files = find_atari_files(item_files)
+        atari_files: list = find_atari_files(item_files)
         if not atari_files:
             continue
 
-        print(f"atari_files: {atari_files}")
+        atari_files_flat = " ".join(atari_files)
+        print(f"atari_files: {atari_files_flat}")
 
         print(f"Downloading {current_item.identifier} to {destination_items_path}")
-        current_item.download(verbose=True, files=atari_files, destdir=str(destination_items_path), retries=3)
+        current_item.download(verbose=True, files=atari_files_flat, destdir=str(destination_items_path), retries=3)
         collection_ids = [
             collection.metadata['identifier']
             for collection in current_item.collection
@@ -68,4 +67,5 @@ if __name__ == '__main__':
             collection_symlink_path: pathlib.Path = collection_folder_path / slugified_title
             collection_symlink_path.mkdir(exist_ok=True)
             print(f"Creating symbolic link from {current_item_path} to {collection_symlink_path}")
-            current_item_path.symlink_to(collection_symlink_path, target_is_directory=True)
+            if not collection_symlink_path.exists():
+                current_item_path.symlink_to(collection_symlink_path, target_is_directory=True)
