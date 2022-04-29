@@ -68,4 +68,4 @@ if __name__ == '__main__':
             collection_symlink_path.mkdir(exist_ok=True)
             print(f"Creating symbolic link from {current_item_path} to {collection_symlink_path}")
             if not collection_symlink_path.exists():
-                current_item_path.symlink_to(collection_symlink_path, target_is_directory=True)
+                current_item_path.symlink_to(collection_symlink_path
