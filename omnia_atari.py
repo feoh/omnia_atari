@@ -1,37 +1,71 @@
+#!/usr/bin/env python
+import pathlib
 import time
+import argparse
 from pathlib import Path
+from slugify import slugify
 
 from internetarchive import search_items, Item
-from requests.exceptions import ConnectTimeout
-from urllib3.exceptions import ConnectTimeoutError
-
-DESTINATION_FOLDER_PATH = Path.home() / "iadownloads"
-DESTINATION_FOLDER_PATH.mkdir(exist_ok=True)
 
 
-# This is my best guess to get all 8 bit Atari Binaries the Internet Archive has on offer.
-def download_for_glob(glob_pattern, search_results: search_items):
-    # This is imperfect to say the least but if we fail, pause a minute and check the list for uncompleted downloads
-    # Also gross - since glob_pattern only supports a SINGLE glob, if I want to ONLY download the various binary formats
-    # I need to do separate downloads for each :(
-    item: Item
-    for item in search_results.iter_as_items():
-        while True:
-            try:
-                item.download(verbose=True, glob_pattern=glob_pattern, retries=50, destdir=str(DESTINATION_FOLDER_PATH))
-            except ConnectTimeoutError:
-                print("If at first we don't succeed - START AGAIN! - urllib3 timeout.")
-                time.sleep(30)
-                continue
-            except ConnectTimeout:
-                print("If at first we don't succeed - START AGAIN! - requests timeout.")
-                time.sleep(30)
-                continue
-            break
+def handle_args() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("root", help="Root folder for downloads")
+    return parser.parse_args()
 
 
-search = search_items('a8b_')
-download_for_glob("*.atr", search)
-download_for_glob("*.rom", search)
-download_for_glob("*.cas", search)
-download_for_glob("*.car", search)
+def find_atari_files(files: list) -> list:
+    atari_extensions = ['.atr', '.rom', '.cas', '.car', '.xex']
+    found_files = [
+        atari_file
+        for atari_file in files
+        for extension in atari_extensions
+        if atari_file.endswith(extension)
+    ]
+    return found_files
+
+
+def get_item_files(item: Item) -> list:
+    item_files = [
+        item_file['name']
+        for item_file in item.files
+    ]
+    return item_files
+
+
+if __name__ == '__main__':
+    args = handle_args()
+    destination_folder_root = Path(args.root)
+    destination_items_path = destination_folder_root / "items"
+    destination_items_path.mkdir(exist_ok=True)
+    destination_collections_path = destination_folder_root / "collections"
+    destination_collections_path.mkdir(exist_ok=True)
+
+    search = search_items('a8b_')
+
+    current_item: Item
+    for current_item in search.iter_as_items():
+        item_files = get_item_files(current_item)
+        atari_files: list = find_atari_files(item_files)
+        if not atari_files:
+            continue
+
+        atari_files_flat = " ".join(atari_files)
+        print(f"atari_files: {atari_files_flat}")
+
+        print(f"Downloading {current_item.identifier} to {destination_items_path}")
+        current_item.download(verbose=True, files=atari_files_flat, destdir=str(destination_items_path), retries=3)
+        collection_ids = [
+            collection.metadata['identifier']
+            for collection in current_item.collection
+        ]
+        print(f"collection_ids: {collection_ids}")
+        current_item_path: pathlib.Path = destination_items_path / current_item.identifier
+        for collection_name in collection_ids:
+            collection_folder_path: pathlib.Path = destination_collections_path / collection_name
+            collection_folder_path.mkdir(exist_ok=True)
+            for atari_file in atari_files:
+                collection_item_path: pathlib.Path = collection_folder_path / atari_file
+                item_file_path: pathlib.Path = current_item_path / atari_file
+                print(f"Creating symlink from {item_file_path} to {collection_folder_path}")
+                collection_item_path.symlink_to(item_file_path)
