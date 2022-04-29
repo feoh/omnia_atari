@@ -64,12 +64,8 @@ if __name__ == '__main__':
         for collection_name in collection_ids:
             collection_folder_path: pathlib.Path = destination_collections_path / collection_name
             collection_folder_path.mkdir(exist_ok=True)
-            slugified_title = slugify(current_item.metadata['title'])
-            collection_symlink_path: pathlib.Path = collection_folder_path / slugified_title
-            print(f"Creating symbolic link from {current_item_path} to {collection_symlink_path}")
-            if not collection_symlink_path.exists():
-                for atari_file in atari_files:
-                    item_file_path: pathlib.Path = current_item_path / atari_file
-                    collection_file_path: pathlib.Path = collection_symlink_path / atari_file
-                    item_file_path.symlink_to(collection_file_path)
-
+            for atari_file in atari_files:
+                collection_item_path: pathlib.Path = collection_folder_path / atari_file
+                item_file_path: pathlib.Path = current_item_path / atari_file
+                print(f"Creating symlink from {item_file_path} to {collection_folder_path}")
+                collection_item_path.symlink_to(item_file_path)
