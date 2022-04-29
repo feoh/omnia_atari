@@ -66,7 +66,7 @@ if __name__ == '__main__':
             collection_folder_path.mkdir(exist_ok=True)
             slugified_title = slugify(current_item.metadata['title'])
             collection_symlink_path: pathlib.Path = collection_folder_path / slugified_title
-            collection_symlink_path.mkdir(exist_ok=True)
+            # collection_symlink_path.mkdir(exist_ok=True)
             print(f"Creating symbolic link from {current_item_path} to {collection_symlink_path}")
             if not collection_symlink_path.exists():
                 current_item_path.symlink_to(collection_symlink_path)
