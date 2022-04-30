@@ -67,6 +67,6 @@ if __name__ == '__main__':
             for atari_file in atari_files:
                 collection_item_path: pathlib.Path = collection_folder_path / atari_file
                 item_file_path: pathlib.Path = current_item_path / atari_file
-                print(f"Creating symlink from {item_file_path} to {collection_folder_path}")
-                if not collection_item_path.exists():
+                print(f"Creating symlink from {item_file_path} to {collection_item_path}")
+                if not collection_item_path.is_symlink():
                     collection_item_path.symlink_to(item_file_path)
